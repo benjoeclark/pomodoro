@@ -10,10 +10,9 @@ class DisplayThread(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        while len(self.pomodoro.states[-1]) > 0:
-            print '\n' + self.pomodoro.states[-1].displayString[:self.pomodoro.states[-1].blit],
+        while self.pomodoro.running:
+            print '\n' + self.pomodoro.getString(),
             sys.stdout.flush()
-            self.pomodoro.nextState(self.pomodoro.states[-1].update())
             time.sleep(1)
 
 class InputThread(threading.Thread):
@@ -22,58 +21,52 @@ class InputThread(threading.Thread):
         threading.Thread.__init__(self)
 
     def run(self):
-        while len(self.pomodoro.states[-1]) > 0:
+        while self.pomodoro.running:
             command = raw_input()
             self.pomodoro.handleCommand(command)
-        
-
-class State(object):
-    def initialize(self, timeInterval=25, timeStep=10, displayString='.'*50):
-        self.timeInterval = timeInterval
-        self.timeStep = timeStep
-        self.displayString = displayString
-        self.runningTime = 0
-        self.blit = 0
-
-    def update(self):
-        self.blit = (self.blit + 1) % len(self.displayString)
-        self.runningTime += 1
-        self.blit = (self.runningTime / self.timeStep) % len(self.displayString)
-        if self.runningTime < self.timeInterval:
-            return self
-        else:
-            return self.nextState
-
-class Timing(State):
-    def __init__(self, timeInterval=25):
-        self.nextState = Alarm()
-        self.initialize(timeInterval)
-
-class Alarm(State):
-    def __init__(self):
-        self.nextState = None
-        self.initialize(5, 1, '*'*10)
 
 class Pomodoro(object):
-    def __init__(self, timeInterval=25, filename='log'):
+    def __init__(self, timeInterval=25*60, filename='timer.log'):
         self.log = open(filename, 'a')
-        self.states = [Timing(timeInterval)]
+        self.running = True
+        self.timeInterval = timeInterval
+        self.paused = False
+        self.alarm = False
+        self.displayString = '.'*50
+        self.blit = 0
+        self.blitStep = 60
+        self.time = 0
         DisplayThread(self).start()
         InputThread(self).start()
 
+    def getString(self):
+        if self.alarm:
+            self.blit = (self.blit + 1) % 10
+            return '*' * self.blit
+        if self.paused:
+            self.blit = (self.blit + 1) % len('paused')
+            return 'paused'[:self.blit+1]
+        self.time += 1
+        self.blit = (self.time / self.blitStep) % len(self.displayString)
+        if self.time >= self.timeInterval:
+            self.alarm = True
+            if not self.log.closed:
+                self.log.write(time.asctime() + '>' + str(self.timeInterval))
+        return self.displayString[:self.blit+1]
+
     def handleCommand(self, command):
-        self.log.write(command + '\n')
-        if command == 'exit':
-            self.nextState(None)
-
-    def nextState(self, state):
-        if state is None:
-            self.states.pop()
-        if state is not self.states[-1]:
-            self.log.write(str(self.states[-1].__class__))
-            self.log.write(str(state.__class__))
-            self.states = [state]
-
+        if self.alarm:
+            self.alarm = False
+            self.time = 0
+        elif command == 'a':
+            self.alarm = True
+        elif command == 'p' or command == 'pause':
+            if not self.paused:
+                self.blit = 0
+            self.paused = not self.paused
+        elif command == 'exit':
+            self.running = False
+            self.log.close()
 
 def main():
     pomodoro = Pomodoro()
