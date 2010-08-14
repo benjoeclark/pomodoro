@@ -51,7 +51,7 @@ class Pomodoro(object):
         if self.time >= self.timeInterval:
             self.alarm = True
             if not self.log.closed:
-                self.log.write(time.asctime() + '>' + str(self.timeInterval))
+                self.log.write(time.asctime() + '>' + str(self.timeInterval) + '\n')
         return self.displayString[:self.blit+1]
 
     def handleCommand(self, command):
