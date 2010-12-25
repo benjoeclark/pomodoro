@@ -26,8 +26,9 @@ class InputThread(threading.Thread):
             self.pomodoro.handleCommand(command)
 
 class Pomodoro(object):
-    def __init__(self, timeInterval=25*60, filename='timer.log'):
-        self.log = open(filename, 'a')
+    def __init__(self, description='', timeInterval=25*60, filename='timer.log'):
+        self.description = description
+        self.log = filename
         self.running = True
         self.timeInterval = timeInterval
         self.paused = False
@@ -36,13 +37,15 @@ class Pomodoro(object):
         self.blit = 0
         self.blitStep = 60
         self.time = 0
+        self.alarmTime = 0
         DisplayThread(self).start()
         InputThread(self).start()
 
     def getString(self):
         if self.alarm:
+            self.alarmTime += 1
             self.blit = (self.blit + 1) % 10
-            return '*' * self.blit
+            return str(self.alarmTime // 60) + '*' * self.blit
         if self.paused:
             self.blit = (self.blit + 1) % len('paused')
             return 'paused'[:self.blit+1]
@@ -50,14 +53,18 @@ class Pomodoro(object):
         self.blit = (self.time / self.blitStep) % len(self.displayString)
         if self.time >= self.timeInterval:
             self.alarm = True
-            if not self.log.closed:
-                self.log.write(time.asctime() + '>' + str(self.timeInterval) + '\n')
-        return self.displayString[:self.blit+1]
+            log = open(self.log, 'a')
+            if not log.closed:
+                log.write(time.asctime() + '>' + str(self.timeInterval))
+                log.write(' ' + self.description + '\n')
+            log.close()
+        return self.description + self.displayString[:self.blit+1]
 
     def handleCommand(self, command):
         if self.alarm:
             self.alarm = False
             self.time = 0
+            self.running = False
         elif command == 'a':
             self.alarm = True
         elif command == 'p' or command == 'pause':
@@ -66,10 +73,9 @@ class Pomodoro(object):
             self.paused = not self.paused
         elif command == 'exit':
             self.running = False
-            self.log.close()
 
 def main():
-    pomodoro = Pomodoro()
+    pomodoro = Pomodoro(sys.argv[-1])
 
 if __name__ == '__main__':
     main()
