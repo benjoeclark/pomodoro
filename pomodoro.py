@@ -33,7 +33,7 @@ class Pomodoro(object):
         self.timeInterval = timeInterval
         self.paused = False
         self.alarm = False
-        self.displayString = '.'*50
+        self.displayString = ('.'*50).replace('.....', '....,')
         self.blit = 0
         self.blitStep = 60
         self.time = 0
